@@ -20,4 +20,4 @@ app.add_middleware(
 
 @app.get("/ping")
 async def ping():
-    return {"message": "ping!"}
+    return {"message": "pong"}
