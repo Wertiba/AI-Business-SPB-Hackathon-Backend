@@ -4,14 +4,13 @@ import tempfile
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.models.audio_model import (
-    AudioClassificationResponse,
     AudioClassificationItem,
+    AudioClassificationResponse,
     BatchAudioClassificationResponse,
 )
-
 from app.services.audio_classifier import audio_classifier
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 router = APIRouter(prefix="/audio", tags=["audio"])
 
