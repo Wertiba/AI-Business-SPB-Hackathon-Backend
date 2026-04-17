@@ -4,4 +4,4 @@
 export PATH="$HOME/.local/bin:$PATH"
 uv sync
 docker-compose up -d
-echo "Deploy OK"
+curl http://localhost:8000/ping || echo "Ping failed"
