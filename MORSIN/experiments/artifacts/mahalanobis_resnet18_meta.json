@@ -1,0 +1,12 @@
+{
+  "embed_dim": 128,
+  "n_sub": 4,
+  "epochs": 12,
+  "backbone": "resnet18",
+  "pretrained": true,
+  "device": "cuda",
+  "n_train_files": 450,
+  "n_val_files": 120,
+  "val_fpr5_threshold_diag": 20.278231894236747,
+  "val_recall_synthetic_at_fpr5": 0.575
+}
