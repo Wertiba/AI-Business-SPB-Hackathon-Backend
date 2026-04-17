@@ -36,7 +36,7 @@ jobs:
         host: ${{ secrets.VM_HOST }}
         username: anastasia
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        command_timeout: 10m
+        command_timeout: 20m
         script: |
           cd /home/anastasia/backend/ai_hack_backend
           git checkout -- .
