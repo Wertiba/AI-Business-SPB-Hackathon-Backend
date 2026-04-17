@@ -1,6 +1,7 @@
 from app.api import router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 origins = ["localhost"]
 app = FastAPI(
@@ -21,6 +22,7 @@ app.add_middleware(
 
 
 app.include_router(router)
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/ping")

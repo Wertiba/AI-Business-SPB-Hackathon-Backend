@@ -11,6 +11,7 @@ from app.schemas.audio import (
     ClassificationResponse,
 )
 from app.services.classifier import audio_classifier
+from app.core.metrics import anomaly_detected_total, anomaly_score_hist, files_processed_total
 from fastapi import HTTPException, UploadFile
 
 MAX_ZIP_SIZE = 5 * 1024 * 1024 * 1024
@@ -26,6 +27,12 @@ class AudioService:
     async def classify_single(file: UploadFile) -> ClassificationResponse:
         audio_bytes = await file.read()
         classification = await audio_classifier.classify(audio_bytes)
+
+        anomaly_score_hist.observe(classification.anomaly_score)
+        if classification.result:
+            anomaly_detected_total.inc()
+        files_processed_total.labels(status="success").inc()
+
         return ClassificationResponse(
             result=classification.result,
             message=classification.message,
@@ -90,9 +97,15 @@ class AudioService:
                             message=cls.message,
                             anomaly_score=cls.anomaly_score,
                         ))
+                        anomaly_score_hist.observe(cls.anomaly_score)
+                        if cls.result:
+                            anomaly_detected_total.inc()
+                        files_processed_total.labels(status="success").inc()
                         successful += 1
                 except Exception as e:
                     for path in batch:
+                        files_processed_total.labels(status="error").inc()
+                        failed += 1
                         items.append(ClassificationItem(
                             filename=filename_map[path],
                             result=False,
