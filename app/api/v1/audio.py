@@ -28,7 +28,9 @@ async def classify_audio(file: UploadFile = File(...)):
     audio_bytes = await file.read()
     classification = await audio_classifier.classify(audio_bytes)
     return AudioClassificationResponse(
-        result=classification.result, message=classification.message
+        result=classification.result,
+        message=classification.message,
+        anomaly_score=classification.anomaly_score,
     )
 
 
@@ -85,29 +87,59 @@ async def classify_audio_batch(
     successful = 0
     failed = 0
 
-    for filename in wav_files:
-        try:
-            audio_bytes = await loop.run_in_executor(
-                executor, _extract_wav_from_zip, tmp_path, filename
-            )
-            classification = await audio_classifier.classify(audio_bytes)
-            items.append(
-                AudioClassificationItem(
-                    filename=filename,
-                    result=classification.result,
-                    message=classification.message,
+    with tempfile.TemporaryDirectory() as extract_dir:
+        extracted_paths = []
+        filename_map = {}
+
+        for filename in wav_files:
+            try:
+                audio_bytes = await loop.run_in_executor(
+                    executor, _extract_wav_from_zip, tmp_path, filename
                 )
-            )
-            successful += 1
-        except Exception as e:
-            items.append(
-                AudioClassificationItem(
-                    filename=filename,
-                    result=False,
-                    message=f"Error processing file: {str(e)}",
+                from pathlib import Path
+                safe_name = Path(filename).name
+                extracted_path = Path(extract_dir) / safe_name
+                extracted_path.write_bytes(audio_bytes)
+                extracted_paths.append(extracted_path)
+                filename_map[extracted_path] = filename
+            except Exception as e:
+                items.append(
+                    AudioClassificationItem(
+                        filename=filename,
+                        result=False,
+                        message=f"Error extracting file: {str(e)}",
+                        anomaly_score=0.0,
+                    )
                 )
-            )
-            failed += 1
+                failed += 1
+
+        if extracted_paths:
+            batch_size = audio_classifier.model.batch_size
+            for i in range(0, len(extracted_paths), batch_size):
+                batch_paths = extracted_paths[i : i + batch_size]
+                try:
+                    classifications = await audio_classifier.classify_batch(batch_paths)
+                    for path, classification in zip(batch_paths, classifications):
+                        items.append(
+                            AudioClassificationItem(
+                                filename=filename_map[path],
+                                result=classification.result,
+                                message=classification.message,
+                                anomaly_score=classification.anomaly_score,
+                            )
+                        )
+                        successful += 1
+                except Exception as e:
+                    for path in batch_paths:
+                        items.append(
+                            AudioClassificationItem(
+                                filename=filename_map[path],
+                                result=False,
+                                message=f"Error processing file: {str(e)}",
+                                anomaly_score=0.0,
+                            )
+                        )
+                        failed += 1
 
     os.unlink(tmp_path)
     executor.shutdown(wait=False)
