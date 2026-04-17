@@ -1,4 +1,4 @@
-from app.api.v1.audio import router as audio_router
+from app.api import router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 
-app.include_router(audio_router, prefix="/api/v1")
+app.include_router(router)
 
 
 @app.get("/ping")

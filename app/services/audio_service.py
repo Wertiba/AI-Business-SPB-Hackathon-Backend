@@ -83,7 +83,7 @@ class AudioService:
                 batch = extracted_paths[i : i + batch_size]
                 try:
                     classifications = await audio_classifier.classify_batch(batch)
-                    for path, cls in zip(batch, classifications):
+                    for path, cls in zip(batch, classifications, strict=True):
                         items.append(AudioClassificationItem(
                             filename=filename_map[path],
                             result=cls.result,
