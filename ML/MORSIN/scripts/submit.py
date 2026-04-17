@@ -28,7 +28,7 @@ EXCLUDE_DIRS = {
     "experiments",
     "tests",
 }
-EXCLUDE_FILES = {"bundle.zip", ".env", ".env.example", ".gitignore", ".python-version", "README.md", "pyproject.toml", "uv.lock"}
+EXCLUDE_FILES = {"bundle.zip", ".env", ".env.example", ".gitignore", ".python-version", "README.md", "task.md", "pyproject.toml", "uv.lock"}
 EXCLUDE_PATHS = {"artifacts/deep.pt", "artifacts/score_calibration.joblib", "neuroice/deep.py"}
 
 

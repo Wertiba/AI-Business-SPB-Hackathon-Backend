@@ -61,7 +61,7 @@ class AudioService:
             return tmp.name
 
     async def _process_zip(self, tmp_path: str) -> BatchResponse:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         try:
             wav_files = await loop.run_in_executor(
@@ -112,7 +112,6 @@ class AudioService:
                             message=f"Error processing file: {e}",
                             anomaly_score=0.0,
                         ))
-                        failed += 1
 
         return BatchResponse(
             items=items,

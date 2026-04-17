@@ -4,11 +4,13 @@ from pathlib import Path
 from app.schemas.audio import ClassificationResponse
 from solution import PredictionModel
 
+THRESHOLD = 0.5
+
 
 class AudioClassifierService:
     def __init__(self):
         self.model = PredictionModel()
-        self.threshold = 0.5
+        self.threshold = THRESHOLD
 
     async def classify(self, audio_bytes: bytes) -> ClassificationResponse:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
