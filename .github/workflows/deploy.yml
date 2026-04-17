@@ -1,0 +1,50 @@
+name: CI/CD Ping Backend
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Install uv & Test  
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        source $HOME/.local/bin/env
+        export PATH="$HOME/.local/bin:$PATH"
+        echo "${{ secrets.ENV }}" | base64 -d > .env
+        uv sync
+        uv run pytest -q || echo "No tests - OK"
+
+  deploy:
+    runs-on: ubuntu-latest
+    # needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    - name: Deploy
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VM_HOST }}
+        username: anastasia
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # cd /home/anastasia/backend || mkdir -p /home/anastasia/backend
+          cd /home/anastasia/backend/ping
+          git checkout -- .
+          git pull origin main
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          source $HOME/.local/bin/env
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "${{ secrets.ENV }}" | base64 -d > .env
+          uv sync
+          chmod +x deploy.sh
+          ./deploy.sh

@@ -1,0 +1,106 @@
+[project]
+name = "ping"
+version = "0.1.0"
+description = "ping"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "bcrypt==4.0.1",
+    "fastapi[standard]>=0.121.2",
+    "passlib==1.7.4",
+    "pydantic-settings>=2.12.0",
+    "pyjwt>=2.10.1",
+    "redis>=7.1.0",
+    "ruff>=0.14.5",
+    "sqlalchemy>=2.0.44",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.5",
+]
+
+[tool.ruff]
+exclude = [".venv", "alembic"]
+include = ["*.py"]
+line-length = 120
+indent-width = 4
+target-version = "py312"
+src = ["app"]
+
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle
+    "F",      # Pyflakes
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "I",      # isort
+    "PL",     # Pylint
+    "PLC",    # Pylint - Convention
+    "PLE",    # Pylint - Error
+    "PLW",    # Pylint - Warning
+    "LOG",    # flake8-logging
+    "G",      # flake8-logging-format
+    "BLE",    # flake8-blind-except
+    "C4",     # flake8-comprehensions
+    "C90",    # mccabe
+    "DTZ",    # flake8-datetimez
+    "ERA",    # eradicate
+    "ISC",    # flake8-implicit-str-concat
+    "N",      # pep8-naming
+    "PGH",    # pygrep-hooks
+    "PIE",    # flake8-pie
+    "PTH",    # flake8-use-pathlib
+    "Q",      # flake8-quotes
+    "RET",    # flake8-return
+    "S",      # flake8-bandit
+    "T10",    # flake8-debugger
+    "T20",    # flake8-print
+    "TC",     # flake8-type-checking
+    "TID",    # flake8-tidy-imports
+    "W",      # pycodestyle warnings
+    "RUF",    # Ruff-specific
+    "PERF",   # Perflint
+    "FURB",   # refurb
+    "TRY",    # tryceratops
+    "ASYNC",  # flake8-async
+]
+
+ignore = [
+    "B008", # Использование mutable defaults (часто используется в FastAPI)
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_no_return = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+follow_imports = "normal"
+disallow_any_generics = false
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+ignore_missing_imports = false
+implicit_optional = false
+strict_equality = true
+warn_return_any = false
+plugins = [
+    'pydantic.mypy',
+    'sqlalchemy.ext.mypy.plugin',
+]
+
+# Настройка форматирования импортов
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+# Игнорировать файлы и директории
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # Разрешить неиспользуемые импорты в __init__.py
+"tests/*" = ["S101"] # Разрешить assert в тестах
