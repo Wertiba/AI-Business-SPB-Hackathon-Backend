@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from app.schemas.audio import AudioClassificationResponse
+from app.schemas.audio import ClassificationResponse
 from solution import PredictionModel
 
 
@@ -10,7 +10,7 @@ class AudioClassifierService:
         self.model = PredictionModel()
         self.threshold = 0.5
 
-    async def classify(self, audio_bytes: bytes) -> AudioClassificationResponse:
+    async def classify(self, audio_bytes: bytes) -> ClassificationResponse:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp.write(audio_bytes)
             tmp_path = Path(tmp.name)
@@ -22,19 +22,19 @@ class AudioClassifierService:
             tmp_path.unlink(missing_ok=True)
 
         is_anomaly = anomaly_score > self.threshold
-        return AudioClassificationResponse(
+        return ClassificationResponse(
             result=is_anomaly,
             message="Anomaly detected" if is_anomaly else "Normal",
             anomaly_score=anomaly_score,
         )
 
-    async def classify_batch(self, file_paths: list[Path]) -> list[AudioClassificationResponse]:
+    async def classify_batch(self, file_paths: list[Path]) -> list[ClassificationResponse]:
         scores = self.model.predict(file_paths)
         results = []
         for score in scores:
             is_anomaly = score > self.threshold
             results.append(
-                AudioClassificationResponse(
+                ClassificationResponse(
                     result=is_anomaly,
                     message="Anomaly detected" if is_anomaly else "Normal",
                     anomaly_score=score,

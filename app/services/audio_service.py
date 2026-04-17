@@ -6,9 +6,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from app.schemas.audio import (
-    AudioClassificationItem,
-    AudioClassificationResponse,
-    BatchAudioClassificationResponse,
+    BatchResponse,
+    ClassificationItem,
+    ClassificationResponse,
 )
 from app.services.classifier import audio_classifier
 from fastapi import HTTPException, UploadFile
@@ -23,16 +23,16 @@ class AudioService:
         self._executor = ThreadPoolExecutor(max_workers=4)
 
     @staticmethod
-    async def classify_single(file: UploadFile) -> AudioClassificationResponse:
+    async def classify_single(file: UploadFile) -> ClassificationResponse:
         audio_bytes = await file.read()
         classification = await audio_classifier.classify(audio_bytes)
-        return AudioClassificationResponse(
+        return ClassificationResponse(
             result=classification.result,
             message=classification.message,
             anomaly_score=classification.anomaly_score,
         )
 
-    async def classify_batch_zip(self, file: UploadFile) -> BatchAudioClassificationResponse:
+    async def classify_batch_zip(self, file: UploadFile) -> BatchResponse:
         tmp_path = await self._save_zip(file)
         try:
             return await self._process_zip(tmp_path)
@@ -53,7 +53,7 @@ class AudioService:
                 tmp.write(chunk)
             return tmp.name
 
-    async def _process_zip(self, tmp_path: str) -> BatchAudioClassificationResponse:
+    async def _process_zip(self, tmp_path: str) -> BatchResponse:
         loop = asyncio.get_event_loop()
 
         try:
@@ -68,7 +68,7 @@ class AudioService:
         if len(wav_files) > MAX_FILES:
             raise HTTPException(status_code=400, detail=f"Maximum {MAX_FILES} WAV files allowed")
 
-        items: list[AudioClassificationItem] = []
+        items: list[ClassificationItem] = []
         successful = 0
         failed = 0
 
@@ -84,7 +84,7 @@ class AudioService:
                 try:
                     classifications = await audio_classifier.classify_batch(batch)
                     for path, cls in zip(batch, classifications, strict=True):
-                        items.append(AudioClassificationItem(
+                        items.append(ClassificationItem(
                             filename=filename_map[path],
                             result=cls.result,
                             message=cls.message,
@@ -93,7 +93,7 @@ class AudioService:
                         successful += 1
                 except Exception as e:
                     for path in batch:
-                        items.append(AudioClassificationItem(
+                        items.append(ClassificationItem(
                             filename=filename_map[path],
                             result=False,
                             message=f"Error processing file: {e}",
@@ -101,7 +101,7 @@ class AudioService:
                         ))
                         failed += 1
 
-        return BatchAudioClassificationResponse(
+        return BatchResponse(
             items=items,
             total=len(wav_files),
             successful=successful,
@@ -126,7 +126,7 @@ class AudioService:
                 extracted_paths.append(path)
                 filename_map[path] = filename
             except Exception as e:
-                items.append(AudioClassificationItem(
+                items.append(ClassificationItem(
                     filename=filename,
                     result=False,
                     message=f"Error extracting file: {e}",

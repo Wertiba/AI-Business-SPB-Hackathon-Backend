@@ -1,21 +1,21 @@
 from pydantic import BaseModel
 
 
-class AudioClassificationResponse(BaseModel):
+class ClassificationResponse(BaseModel):
     result: bool
     message: str
     anomaly_score: float
 
 
-class AudioClassificationItem(BaseModel):
+class ClassificationItem(BaseModel):
     filename: str
     result: bool
     message: str
     anomaly_score: float
 
 
-class BatchAudioClassificationResponse(BaseModel):
-    items: list[AudioClassificationItem]
+class BatchResponse(BaseModel):
+    items: list[ClassificationItem]
     total: int
     successful: int
     failed: int
