@@ -4,7 +4,7 @@ import tempfile
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 
-from app.models.audio_model import (
+from app.schemas.audio import (
     AudioClassificationItem,
     AudioClassificationResponse,
     BatchAudioClassificationResponse,
