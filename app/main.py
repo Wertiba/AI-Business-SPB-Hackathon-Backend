@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
-origins = ["localhost"]
+origins = ["localhost", "*"]
 app = FastAPI(
     title="AI Business SPB",
     version="1.0",
