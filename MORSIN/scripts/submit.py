@@ -21,7 +21,7 @@ EXCLUDE_DIRS = {
     ".git",
     ".vscode",
     ".torch_home",
-    "notebooks",
+    "ML",
     "__pycache__",
     ".ipynb_checkpoints",
     "scripts",
