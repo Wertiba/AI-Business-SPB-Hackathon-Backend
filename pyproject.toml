@@ -71,38 +71,3 @@ select = [
     "ASYNC",  # flake8-async
 ]
 
-ignore = [
-    "B008", # Использование mutable defaults (часто используется в FastAPI)
-]
-
-[tool.mypy]
-python_version = "3.12"
-warn_no_return = true
-warn_redundant_casts = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
-follow_imports = "normal"
-disallow_any_generics = false
-disallow_incomplete_defs = true
-disallow_subclassing_any = true
-disallow_untyped_calls = true
-disallow_untyped_decorators = true
-disallow_untyped_defs = true
-ignore_missing_imports = false
-implicit_optional = false
-strict_equality = true
-warn_return_any = false
-plugins = [
-    'pydantic.mypy',
-    'sqlalchemy.ext.mypy.plugin',
-]
-
-# Настройка форматирования импортов
-[tool.ruff.lint.isort]
-known-first-party = ["app"]
-
-# Игнорировать файлы и директории
-[tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"] # Разрешить неиспользуемые импорты в __init__.py
-"tests/*" = ["S101"] # Разрешить assert в тестах
