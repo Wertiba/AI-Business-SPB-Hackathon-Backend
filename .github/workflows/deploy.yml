@@ -1,4 +1,4 @@
-name: CI/CD Ping Backend
+name: CI/CD Backend
 on:
   push:
     branches: [ main ]
@@ -37,8 +37,7 @@ jobs:
         username: anastasia
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          # cd /home/anastasia/backend || mkdir -p /home/anastasia/backend
-          cd /home/anastasia/backend/ping
+          cd /home/anastasia/backend/ai_hack_backend
           git checkout -- .
           git pull origin main
           curl -LsSf https://astral.sh/uv/install.sh | sh
