@@ -16,8 +16,8 @@ WAV-файл (5 сек, 48kHz, stereo, 24-bit)
 ┌───────────────────────────────┐
 │        FastAPI Backend        │
 │                               │
-│  POST /api/v1/audio/classify         │
-│  POST /api/v1/audio/classify-batch   │
+│  POST audio/classify          │
+│  POST audio/classify-batch    │
 │                               │
 │  ┌─────────────────────────┐  │
 │  │     AudioService        │  │
