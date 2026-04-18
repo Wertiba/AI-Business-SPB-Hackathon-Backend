@@ -6,9 +6,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from app.schemas.audio import (
+    AnomalyLabel,
     BatchResponse,
     ClassificationItem,
     ClassificationResponse,
+    SegmentType,
 )
 from app.services.classifier import audio_classifier
 from app.core.metrics import anomaly_detected_total, anomaly_score_hist, files_processed_total
@@ -24,22 +26,28 @@ class AudioService:
         self._executor = ThreadPoolExecutor(max_workers=4)
 
     @staticmethod
-    async def classify_single(file: UploadFile) -> ClassificationResponse:
+    async def classify_single(
+        file: UploadFile,
+        vehicle_id: str | None = None,
+        segment_type: SegmentType = SegmentType.IDLE,
+        duration_sec: float | None = None,
+    ) -> ClassificationResponse:
         audio_bytes = await file.read()
         classification = await audio_classifier.classify(audio_bytes)
 
         anomaly_score_hist.observe(classification.anomaly_score)
-        if classification.result:
+        if classification.label == AnomalyLabel.ANOMALY:
             anomaly_detected_total.inc()
         files_processed_total.labels(status="success").inc()
 
-        return ClassificationResponse(
-            result=classification.result,
-            message=classification.message,
-            anomaly_score=classification.anomaly_score,
-        )
+        return classification
 
-    async def classify_batch_zip(self, file: UploadFile) -> BatchResponse:
+    async def classify_batch_zip(
+        self,
+        file: UploadFile,
+        vehicle_id: str | None = None,
+        segment_type: SegmentType = SegmentType.IDLE,
+    ) -> BatchResponse:
         tmp_path = await self._save_zip(file)
         try:
             return await self._process_zip(tmp_path)
@@ -82,7 +90,7 @@ class AudioService:
         batch_size = audio_classifier.model.batch_size
 
         for i in range(0, len(wav_files), batch_size):
-            batch_filenames = wav_files[i: i + batch_size]
+            batch_filenames = wav_files[i : i + batch_size]
 
             batch_bytes: list[tuple[str, bytes]] = []
             for filename in batch_filenames:
@@ -94,9 +102,9 @@ class AudioService:
                 except Exception as e:
                     items.append(ClassificationItem(
                         filename=filename,
-                        result=False,
-                        message=f"Error reading file: {e}",
                         anomaly_score=0.0,
+                        label=AnomalyLabel.NORMAL,
+                        error=f"Error reading file: {e}",
                     ))
                     files_processed_total.labels(status="error").inc()
                     failed += 1
@@ -109,9 +117,7 @@ class AudioService:
 
             for filename, data in batch_bytes:
                 try:
-                    with tempfile.NamedTemporaryFile(
-                            delete=False, suffix=".wav"
-                    ) as tmp:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
                         tmp.write(data)
                         p = Path(tmp.name)
                     tmp_paths.append(p)
@@ -119,9 +125,9 @@ class AudioService:
                 except Exception as e:
                     items.append(ClassificationItem(
                         filename=filename,
-                        result=False,
-                        message=f"Error writing tmp file: {e}",
                         anomaly_score=0.0,
+                        label=AnomalyLabel.NORMAL,
+                        error=f"Error writing tmp file: {e}",
                     ))
                     files_processed_total.labels(status="error").inc()
                     failed += 1
@@ -131,12 +137,13 @@ class AudioService:
                 for path, cls in zip(tmp_paths, classifications, strict=True):
                     items.append(ClassificationItem(
                         filename=filename_map[path],
-                        result=cls.result,
-                        message=cls.message,
                         anomaly_score=cls.anomaly_score,
+                        label=cls.label,
+                        rpm_estimate=cls.rpm_estimate,
+                        model_version=cls.model_version,
                     ))
                     anomaly_score_hist.observe(cls.anomaly_score)
-                    if cls.result:
+                    if cls.label == AnomalyLabel.ANOMALY:
                         anomaly_detected_total.inc()
                     files_processed_total.labels(status="success").inc()
                     successful += 1
@@ -144,9 +151,9 @@ class AudioService:
                 for path in tmp_paths:
                     items.append(ClassificationItem(
                         filename=filename_map[path],
-                        result=False,
-                        message=f"Error processing: {e}",
                         anomaly_score=0.0,
+                        label=AnomalyLabel.NORMAL,
+                        error=f"Error processing: {e}",
                     ))
                     files_processed_total.labels(status="error").inc()
                     failed += 1
