@@ -79,39 +79,80 @@ class AudioService:
         successful = 0
         failed = 0
 
-        with tempfile.TemporaryDirectory() as extract_dir:
-            extracted_paths, filename_map = await self._extract_files(
-                tmp_path, wav_files, extract_dir, items, loop
-            )
-            failed += len(wav_files) - len(extracted_paths)
+        batch_size = audio_classifier.model.batch_size
 
-            batch_size = audio_classifier.model.batch_size
-            for i in range(0, len(extracted_paths), batch_size):
-                batch = extracted_paths[i : i + batch_size]
+        for i in range(0, len(wav_files), batch_size):
+            batch_filenames = wav_files[i: i + batch_size]
+
+            batch_bytes: list[tuple[str, bytes]] = []
+            for filename in batch_filenames:
                 try:
-                    classifications = await audio_classifier.classify_batch(batch)
-                    for path, cls in zip(batch, classifications, strict=True):
-                        items.append(ClassificationItem(
-                            filename=filename_map[path],
-                            result=cls.result,
-                            message=cls.message,
-                            anomaly_score=cls.anomaly_score,
-                        ))
-                        anomaly_score_hist.observe(cls.anomaly_score)
-                        if cls.result:
-                            anomaly_detected_total.inc()
-                        files_processed_total.labels(status="success").inc()
-                        successful += 1
+                    data = await loop.run_in_executor(
+                        self._executor, self._read_from_zip, tmp_path, filename
+                    )
+                    batch_bytes.append((filename, data))
                 except Exception as e:
-                    for path in batch:
-                        files_processed_total.labels(status="error").inc()
-                        failed += 1
-                        items.append(ClassificationItem(
-                            filename=filename_map[path],
-                            result=False,
-                            message=f"Error processing file: {e}",
-                            anomaly_score=0.0,
-                        ))
+                    items.append(ClassificationItem(
+                        filename=filename,
+                        result=False,
+                        message=f"Error reading file: {e}",
+                        anomaly_score=0.0,
+                    ))
+                    files_processed_total.labels(status="error").inc()
+                    failed += 1
+
+            if not batch_bytes:
+                continue
+
+            tmp_paths: list[Path] = []
+            filename_map: dict[Path, str] = {}
+
+            for filename, data in batch_bytes:
+                try:
+                    with tempfile.NamedTemporaryFile(
+                            delete=False, suffix=".wav"
+                    ) as tmp:
+                        tmp.write(data)
+                        p = Path(tmp.name)
+                    tmp_paths.append(p)
+                    filename_map[p] = filename
+                except Exception as e:
+                    items.append(ClassificationItem(
+                        filename=filename,
+                        result=False,
+                        message=f"Error writing tmp file: {e}",
+                        anomaly_score=0.0,
+                    ))
+                    files_processed_total.labels(status="error").inc()
+                    failed += 1
+
+            try:
+                classifications = await audio_classifier.classify_batch(tmp_paths)
+                for path, cls in zip(tmp_paths, classifications, strict=True):
+                    items.append(ClassificationItem(
+                        filename=filename_map[path],
+                        result=cls.result,
+                        message=cls.message,
+                        anomaly_score=cls.anomaly_score,
+                    ))
+                    anomaly_score_hist.observe(cls.anomaly_score)
+                    if cls.result:
+                        anomaly_detected_total.inc()
+                    files_processed_total.labels(status="success").inc()
+                    successful += 1
+            except Exception as e:
+                for path in tmp_paths:
+                    items.append(ClassificationItem(
+                        filename=filename_map[path],
+                        result=False,
+                        message=f"Error processing: {e}",
+                        anomaly_score=0.0,
+                    ))
+                    files_processed_total.labels(status="error").inc()
+                    failed += 1
+            finally:
+                for path in tmp_paths:
+                    path.unlink(missing_ok=True)
 
         return BatchResponse(
             items=items,
@@ -119,33 +160,6 @@ class AudioService:
             successful=successful,
             failed=failed,
         )
-
-    async def _extract_files(
-        self, tmp_path: str, wav_files: list[str],
-        extract_dir: str, items: list, loop: asyncio.AbstractEventLoop,
-    ) -> tuple[list[Path], dict[Path, str]]:
-        extracted_paths = []
-        filename_map = {}
-
-        for filename in wav_files:
-            try:
-                audio_bytes = await loop.run_in_executor(
-                    self._executor, self._read_from_zip, tmp_path, filename
-                )
-                safe_name = Path(filename).name
-                path = Path(extract_dir) / safe_name
-                path.write_bytes(audio_bytes)
-                extracted_paths.append(path)
-                filename_map[path] = filename
-            except Exception as e:
-                items.append(ClassificationItem(
-                    filename=filename,
-                    result=False,
-                    message=f"Error extracting file: {e}",
-                    anomaly_score=0.0,
-                ))
-
-        return extracted_paths, filename_map
 
     @staticmethod
     def _get_wav_files(zip_path: str) -> list[str]:
